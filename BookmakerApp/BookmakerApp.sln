@@ -7,6 +7,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BookmakerApp", "BookmakerAp
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BookmakerApp.Client", "BookmakerApp.Client\BookmakerApp.Client.csproj", "{336A7593-1889-4BB5-AB0F-524F1CF8D414}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BookmakerApp.Shared", "BookmakerApp.Shared\BookmakerApp.Shared.csproj", "{A0D2FEB1-E7C3-4A7E-A5AC-E8769858F746}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +23,10 @@ Global
 		{336A7593-1889-4BB5-AB0F-524F1CF8D414}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{336A7593-1889-4BB5-AB0F-524F1CF8D414}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{336A7593-1889-4BB5-AB0F-524F1CF8D414}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A0D2FEB1-E7C3-4A7E-A5AC-E8769858F746}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A0D2FEB1-E7C3-4A7E-A5AC-E8769858F746}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A0D2FEB1-E7C3-4A7E-A5AC-E8769858F746}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A0D2FEB1-E7C3-4A7E-A5AC-E8769858F746}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -1,7 +1,10 @@
 using BookmakerApp.Client.Pages;
+using BookmakerApp.Client.Services;
 using BookmakerApp.Components;
 using BookmakerApp.Components.Account;
 using BookmakerApp.Data;
+using BookmakerApp.Services;
+using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -38,6 +41,16 @@ builder.Services.AddIdentityCore<ApplicationUser>(options => options.SignIn.Requ
 
 builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSender>();
 
+
+builder.Services.AddControllers();
+builder.Services.AddHttpClient<ExternalFootballApiService>();
+builder.Services.AddScoped<HttpClient>(sp =>
+{
+    var nav = sp.GetRequiredService<NavigationManager>();
+    return new HttpClient { BaseAddress = new Uri(nav.BaseUri) };
+});
+
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -64,6 +77,7 @@ app.MapRazorComponents<App>()
     .AddInteractiveWebAssemblyRenderMode()
     .AddAdditionalAssemblies(typeof(BookmakerApp.Client._Imports).Assembly);
 
+app.MapControllers();
 // Add additional endpoints required by the Identity /Account Razor components.
 app.MapAdditionalIdentityEndpoints();
 

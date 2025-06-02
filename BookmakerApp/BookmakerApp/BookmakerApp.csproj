@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\BookmakerApp.Client\BookmakerApp.Client.csproj" />
+    <ProjectReference Include="..\BookmakerApp.Shared\BookmakerApp.Shared.csproj" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="9.0.5" />
     <PackageReference Include="Microsoft.AspNetCore.Diagnostics.EntityFrameworkCore" Version="9.0.5" />
     <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="9.0.5" />

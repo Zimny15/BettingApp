@@ -1,64 +1,129 @@
 ﻿@page "/games"
-@attribute [StreamRendering]
+@using BookmakerApp.Shared.Models
+@inject HttpClient Http
 
-<PageTitle>Games</PageTitle>
+<PageTitle>Premier League Games</PageTitle>
 
-<h1>Games</h1>
+<h1>Premier League Games</h1>
 
-<p>This component demonstrates showing data.</p>
+<style>
+    .league-header {
+        margin-top: 2rem;
+        font-size: 1.3rem;
+        color: #1e1e2f;
+        display: flex;
+        align-items: center;
+    }
 
-@if (forecasts == null)
+    .match-table {
+        width: 100%;
+        max-width: 800px;
+        margin: 0 auto 2rem auto;
+        border-collapse: collapse;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        font-family: 'Segoe UI', sans-serif;
+    }
+
+    .match-table thead {
+        background-color: #1e1e2f;
+        color: #fff;
+        font-weight: 600;
+    }
+
+    .match-table th,
+    .match-table td {
+        padding: 12px 16px;
+        text-align: center;
+        border-bottom: 1px solid #ddd;
+    }
+
+    .match-table tbody tr:hover {
+        background-color: #f5f5f5;
+    }
+
+    .match-day-title {
+        text-align: center;
+        margin-top: 2rem;
+        font-size: 1.3rem;
+        font-weight: bold;
+        color: #333;
+    }
+
+    .match-time {
+        font-weight: bold;
+        color: #2c3e50;
+    }
+</style>
+
+@if (groupedMatches == null)
 {
-    <p><em>Loading...</em></p>
+    <p>Ładowanie...</p>
 }
 else
 {
-    <table class="table">
-        <thead>
-            <tr>
-                <th>Date</th>
-                <th aria-label="Temperature in Celsius">Temp. (C)</th>
-                <th aria-label="Temperature in Farenheit">Temp. (F)</th>
-                <th>Summary</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var forecast in forecasts)
+    @foreach (var leagueGroup in groupedMatches)
+    {
+        <div class="league-header">
+            @if (!string.IsNullOrWhiteSpace(leagueGroup.Key.LeagueLogo))
             {
-                <tr>
-                    <td>@forecast.Date.ToShortDateString()</td>
-                    <td>@forecast.TemperatureC</td>
-                    <td>@forecast.TemperatureF</td>
-                    <td>@forecast.Summary</td>
-                </tr>
+                <img src="@leagueGroup.Key.LeagueLogo" alt="@leagueGroup.Key.LeagueName" width="28" style="vertical-align: middle; margin-right: 8px;" />
             }
-        </tbody>
-    </table>
+            <strong>@leagueGroup.Key.LeagueName</strong>
+        </div>
+
+        <table class="match-table">
+            <thead>
+                <tr><th>Gospodarze</th><th>Goście</th><th>Godzina</th></tr>
+            </thead>
+            <tbody>
+                @foreach (var match in leagueGroup)
+                {
+                    <tr>
+                        <td>
+                            <img src="@match.HomeTeamLogo" width="24" style="vertical-align: middle; margin-right: 6px;" />
+                            @match.HomeTeam
+                        </td>
+                        <td>
+                            <img src="@match.AwayTeamLogo" width="24" style="vertical-align: middle; margin-right: 6px;" />
+                            @match.AwayTeam
+                        </td>
+                        <td class="match-time">@match.Date.ToLocalTime().ToString("HH:mm")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
 }
 
 @code {
-    private WeatherForecast[]? forecasts;
+    private List<IGrouping<(string LeagueName, string LeagueLogo), MatchDto>> groupedMatches;
 
     protected override async Task OnInitializedAsync()
     {
-        // Simulate asynchronous loading to demonstrate streaming rendering
-        await Task.Delay(500);
+        var matches = await Http.GetFromJsonAsync<List<MatchDto>>("api/matches");
 
-        var startDate = DateOnly.FromDateTime(DateTime.Now);
-        var summaries = new[] { "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching" };
-        forecasts = Enumerable.Range(1, 5).Select(index => new WeatherForecast
-        {
-            Date = startDate.AddDays(index),
-            TemperatureC = Random.Shared.Next(-20, 55),
-            Summary = summaries[Random.Shared.Next(summaries.Length)]
-        }).ToArray();
-    }
+        bool IsValidLogo(string logo) =>
+            !string.IsNullOrWhiteSpace(logo)
+            && logo.Contains("http")
+            && !logo.ToLower().Contains("image_not_available")
+            && !logo.ToLower().Contains("placeholder")
+            && !logo.EndsWith(".svg")
+            && !logo.Contains("default.png")
+            && !logo.EndsWith("/");
 
-    private class WeatherForecast
-    {
-        public DateOnly Date { get; set; }
-        public int TemperatureC { get; set; }
-        public string? Summary { get; set; }
-        public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
+        var filtered = matches
+            .Where(m =>
+                IsValidLogo(m.LeagueLogo) &&
+                IsValidLogo(m.HomeTeamLogo) &&
+                IsValidLogo(m.AwayTeamLogo))
+            .ToList();
+
+        groupedMatches = filtered
+            .GroupBy(m => (m.LeagueName, m.LeagueLogo))
+            .Where(g => IsValidLogo(g.Key.LeagueLogo))
+            .OrderBy(g => g.Key.LeagueName)
+            .ToList();
     }
 }
