@@ -1,0 +1,51 @@
+﻿@page "/plstandings"
+@inject HttpClient Http
+@using BookmakerApp.Shared.Models
+
+<h3>Tabela Premier League – sezon 2023</h3>
+
+@if (standings == null)
+{
+    <p>Ładowanie danych...</p>
+}
+else
+{
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Drużyna</th>
+                <th>M</th>
+                <th>W</th>
+                <th>R</th>
+                <th>P</th>
+                <th>Bramki</th>
+                <th>Pkt</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var team in standings)
+            {
+                <tr>
+                    <td>@team.Rank</td>
+                    <td><img src="@team.Logo" width="20" /> @team.TeamName</td>
+                    <td>@team.Played</td>
+                    <td>@team.Win</td>
+                    <td>@team.Draw</td>
+                    <td>@team.Lose</td>
+                    <td>@team.Goals</td>
+                    <td><strong>@team.Points</strong></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    List<StandingDto>? standings;
+
+    protected override async Task OnInitializedAsync()
+    {
+        standings = await Http.GetFromJsonAsync<List<StandingDto>>("api/standings/premierleague");
+    }
+}

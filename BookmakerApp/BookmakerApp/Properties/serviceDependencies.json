@@ -4,5 +4,8 @@
       "type": "mssql",
       "connectionId": "ConnectionStrings:DefaultConnection"
     }
+  },
+  "ApiFootball": {
+    "Key": "13c7527ad64a43ddb42da93ce94f7082"
   }
 }

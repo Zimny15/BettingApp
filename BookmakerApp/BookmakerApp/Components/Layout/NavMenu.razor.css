@@ -66,6 +66,10 @@
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='white' class='bi bi-arrow-bar-left' viewBox='0 0 16 16'%3E%3Cpath d='M12.5 15a.5.5 0 0 1-.5-.5v-13a.5.5 0 0 1 1 0v13a.5.5 0 0 1-.5.5ZM10 8a.5.5 0 0 1-.5.5H3.707l2.147 2.146a.5.5 0 0 1-.708.708l-3-3a.5.5 0 0 1 0-.708l3-3a.5.5 0 1 1 .708.708L3.707 7.5H9.5a.5.5 0 0 1 .5.5Z'/%3E%3C/svg%3E");
 }
 
+.bi-trophy-nav-menu {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='white' class='bi bi-trophy' viewBox='0 0 16 16'%3E%3Cpath d='M2 1a1 1 0 0 0-1 1v2a3 3 0 0 0 2.09 2.857A5.994 5.994 0 0 0 7 10.917V12H5.5a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1H9v-1.083a5.994 5.994 0 0 0 3.91-4.06A3 3 0 0 0 15 4V2a1 1 0 0 0-1-1h-3.02a1 1 0 0 0-.943-.666H5.964a1 1 0 0 0-.943.666H2zm1 3V2h2v2a1 1 0 0 1-2 0zm10-1v1a1 1 0 0 1-2 0V2h2zM8 10a5 5 0 0 1-5-5V2h10v3a5 5 0 0 1-5 5z'/%3E%3C/svg%3E");
+}
+
 .nav-item {
     font-size: 0.9rem;
     padding-bottom: 0.5rem;
@@ -123,3 +127,4 @@
         overflow-y: auto;
     }
 }
+

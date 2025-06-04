@@ -1,0 +1,56 @@
+﻿@page "/wallet"
+@using BookmakerApp.Shared.Models
+@using System.Net.Http
+@using System.Net.Http.Json
+@using Microsoft.AspNetCore.Authorization
+@inject HttpClient Http
+@attribute [Authorize]
+
+<h3>Portfel użytkownika</h3>
+
+@if (wallet == null)
+{
+
+    <p>Ładowanie danych portfela...</p>
+}
+else
+{
+    <p>Stan konta: <strong>@wallet.Balance zł</strong></p>
+    <button @onclick="AddFunds">Doładuj 10 zł</button>
+}
+
+<AuthorizeView>
+    <Authorized>
+        <p>Zalogowany jako: @context.User.Identity?.Name</p>
+    </Authorized>
+    <NotAuthorized>
+        <p>Brak autoryzacji w komponencie Wallet.</p>
+    </NotAuthorized>
+</AuthorizeView>
+
+
+@code {
+    WalletDto? wallet;
+
+    protected override async Task OnInitializedAsync()
+{
+    try
+    {
+        wallet = await Http.GetFromJsonAsync<WalletDto>("api/wallet");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"❌ Błąd: {ex.Message}");
+        var response = await Http.GetAsync("api/wallet");
+        var text = await response.Content.ReadAsStringAsync();
+        Console.WriteLine("➡️ Zawartość odpowiedzi:");
+        Console.WriteLine(text);
+    }
+}
+
+    private async Task AddFunds()
+    {
+        await Http.PostAsync("api/wallet/deposit", null);
+        wallet = await Http.GetFromJsonAsync<WalletDto>("api/wallet");
+    }
+}

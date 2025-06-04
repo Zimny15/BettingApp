@@ -44,6 +44,7 @@ builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSe
 
 builder.Services.AddControllers();
 builder.Services.AddHttpClient<ExternalFootballApiService>();
+builder.Services.AddHttpClient<StandingsService>();
 builder.Services.AddScoped<HttpClient>(sp =>
 {
     var nav = sp.GetRequiredService<NavigationManager>();
@@ -52,6 +53,13 @@ builder.Services.AddScoped<HttpClient>(sp =>
 
 
 var app = builder.Build();
+
+app.Use((context, next) =>
+{
+    context.Request.Headers["Cookie"] = context.Request.Headers["Cookie"];
+    return next();
+});
+
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
