@@ -27,9 +27,5 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             b.Property(p => p.Payout).HasColumnType("decimal(18,2)");
         });
 
-        modelBuilder.Entity<ApplicationUser>()
-            .Property(u => u.Balance)
-            .HasColumnType("decimal(18,2)");
-
     }
 }

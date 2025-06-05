@@ -45,6 +45,8 @@ builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSe
 builder.Services.AddControllers();
 builder.Services.AddHttpClient<ExternalFootballApiService>();
 builder.Services.AddHttpClient<StandingsService>();
+builder.Services.AddScoped<WalletService>();
+builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<HttpClient>(sp =>
 {
     var nav = sp.GetRequiredService<NavigationManager>();

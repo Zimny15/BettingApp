@@ -29,6 +29,14 @@ public class WalletController : ControllerBase
         return Ok(new WalletDto { Balance = wallet.Balance });
     }
 
+    [AllowAnonymous]
+    [HttpGet("demo")]
+    public IActionResult Demo()
+    {
+        return Ok("API działa bez autoryzacji");
+    }
+
+
     [HttpPost("deposit")]
     public async Task<IActionResult> Deposit()
     {
