@@ -60,6 +60,27 @@ namespace BookmakerApp.Services
             return true;
         }
 
+        public async Task<bool> WithdrawFundsAsync(decimal amount)
+        {
+            var wallet = await GetCurrentUserWalletAsync();
+            if (wallet == null || amount <= 0 || wallet.Balance < amount)
+                return false;
+
+            wallet.Balance -= amount;
+
+            _context.WalletTransactions.Add(new WalletTransaction
+            {
+                WalletId = wallet.Id,
+                Amount = -amount,
+                Type = "Withdrawal",
+                Timestamp = DateTime.UtcNow
+            });
+
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
+
         private async Task<ApplicationUser?> GetCurrentUserAsync()
         {
             var userId = _httpContextAccessor.HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -67,6 +88,14 @@ namespace BookmakerApp.Services
                 return null;
 
             return await _userManager.FindByIdAsync(userId);
+        }
+
+        public async Task<List<WalletTransaction>> GetWalletTransactionsAsync(int walletId)
+        {
+            return await _context.WalletTransactions
+                .Where(t => t.WalletId == walletId)
+                .OrderByDescending(t => t.Timestamp)
+                .ToListAsync();
         }
     }
 }

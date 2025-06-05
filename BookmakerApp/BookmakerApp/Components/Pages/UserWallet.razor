@@ -1,46 +1,95 @@
 ﻿@page "/wallet"
-@using BookmakerApp.Services
-@using BookmakerApp.Models
-@using System.ComponentModel.DataAnnotations
+@rendermode InteractiveServer
+@attribute [Authorize]
+
 @using System.Globalization
+@using System.ComponentModel.DataAnnotations
+@using BookmakerApp.Models
+@using BookmakerApp.Services
 @using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
 @inject WalletService WalletService
 @inject NavigationManager NavigationManager
-@using Microsoft.AspNetCore.Components.Authorization
 @inject AuthenticationStateProvider AuthenticationStateProvider
-@inject NavigationManager NavigationManager
-@attribute [Authorize]
-@rendermode InteractiveServer
 
-<h3>Your Wallet</h3>
-<p>Aktualnie zalogowany: <strong>@contextUser</strong></p>
+<PageTitle>Wallet</PageTitle>
 
+<div class="container mt-4">
+    <h2 class="mb-3">💼 Your Wallet</h2>
 
-@if (wallet == null)
-{
-    <p>Loading wallet info...</p>
-}
-else
-{
-    <p><strong>Balance:</strong> @wallet.Balance zł</p>
-
-    <EditForm Model="@topUpModel" OnValidSubmit="TopUp" FormName="topup">
-        <DataAnnotationsValidator />
-        <ValidationSummary />
-        <InputText @bind-Value="topUpModel.AmountString" class="form-control" placeholder="Kwota (np. 20,00)" />
-        <button type="submit" class="btn btn-success mt-2">Top up</button>
-    </EditForm>
-
-    @if (!string.IsNullOrEmpty(successMessage))
+    @if (wallet == null)
     {
-        <p class="text-success">@successMessage</p>
+        <p>Loading wallet data...</p>
     }
-}
+    else
+    {
+        <p><strong>Logged in as:</strong> @contextUser</p>
+        <p><strong>Balance:</strong> <span class="fw-bold">@wallet.Balance.ToString("F2") zł</span></p>
+
+        <div class="row mt-4">
+            <div class="col-md-6">
+                <h5 class="mb-2">➕ Top up</h5>
+                <EditForm Model="@actionModel" OnValidSubmit="TopUp" FormName="topup">
+                    <DataAnnotationsValidator />
+                    <ValidationSummary />
+                    <InputText @bind-Value="actionModel.AmountString" class="form-control" placeholder="Amount (e.g. 20,00)" />
+                    <button type="submit" class="btn btn-success mt-2">Top up</button>
+                </EditForm>
+            </div>
+
+            <div class="col-md-6">
+                <h5 class="mb-2">➖ Withdraw</h5>
+                <EditForm Model="@withdrawModel" OnValidSubmit="Withdraw" FormName="withdraw">
+                    <DataAnnotationsValidator />
+                    <ValidationSummary />
+                    <InputText @bind-Value="withdrawModel.AmountString" class="form-control" placeholder="Amount (e.g. 20,00)" />
+                    <button type="submit" class="btn btn-danger mt-2">Withdraw</button>
+                </EditForm>
+            </div>
+        </div>
+
+        @if (!string.IsNullOrEmpty(successMessage))
+        {
+            <div class="alert alert-info mt-4 text-center">@successMessage</div>
+        }
+
+        <h5 class="mt-5 mb-3">📜 Transaction History</h5>
+        @if (transactions.Any())
+        {
+            <table class="table table-hover table-striped">
+                <thead class="table-dark">
+                    <tr>
+                        <th scope="col">Type</th>
+                        <th scope="col">Amount</th>
+                        <th scope="col">Timestamp</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var t in transactions)
+                    {
+                        <tr>
+                            <td>@t.Type</td>
+                            <td>@(t.Amount > 0 ? "+" : "")@t.Amount.ToString("F2") zł</td>
+                            <td>@t.Timestamp.ToString("g", new CultureInfo("en-GB"))</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+        else
+        {
+            <p class="text-muted">No transactions available.</p>
+        }
+    }
+</div>
 
 @code {
     private string? contextUser;
     private Wallet? wallet;
-    private TopUpModel topUpModel = new();
+    private List<WalletTransaction> transactions = new();
+
+    private WalletActionModel actionModel = new();
+    private WalletActionModel withdrawModel = new();
     private string? successMessage;
 
     protected override async Task OnInitializedAsync()
@@ -55,30 +104,65 @@ else
         }
 
         contextUser = user.Identity?.Name;
-
         wallet = await WalletService.GetCurrentUserWalletAsync();
+
+        if (wallet != null)
+        {
+            transactions = await WalletService.GetWalletTransactionsAsync(wallet.Id);
+        }
     }
 
     private async Task TopUp()
     {
-        if (topUpModel.Amount >= 1 && topUpModel.Amount <= 10000)
+        if (actionModel.Amount is >= 1 and <= 10000)
         {
-            if (await WalletService.AddFundsAsync(topUpModel.Amount))
+            if (await WalletService.AddFundsAsync(actionModel.Amount))
             {
-                successMessage = $"Successfully topped up {topUpModel.Amount} zł!";
-                wallet = await WalletService.GetCurrentUserWalletAsync();
-                topUpModel = new TopUpModel();
+                successMessage = $"Successfully topped up {actionModel.Amount:F2} zł.";
+                await ReloadWalletAndTransactions();
+                actionModel = new WalletActionModel();
             }
         }
         else
         {
-            successMessage = "Wartość musi być z zakresu od 1 do 10 000 zł.";
+            successMessage = "The amount must be between 1 and 10,000 zł.";
         }
     }
 
-    private class TopUpModel
+    private async Task Withdraw()
     {
-        [Required(ErrorMessage = "Kwota jest wymagana.")]
+        if (withdrawModel.Amount is >= 1 and <= 10000)
+        {
+            var success = await WalletService.WithdrawFundsAsync(withdrawModel.Amount);
+            if (success)
+            {
+                successMessage = $"Successfully withdrew {withdrawModel.Amount:F2} zł.";
+                await ReloadWalletAndTransactions();
+                withdrawModel = new WalletActionModel();
+            }
+            else
+            {
+                successMessage = "Error: Insufficient balance or invalid amount.";
+            }
+        }
+        else
+        {
+            successMessage = "The amount must be between 1 and 10,000 zł.";
+        }
+    }
+
+    private async Task ReloadWalletAndTransactions()
+    {
+        wallet = await WalletService.GetCurrentUserWalletAsync();
+        if (wallet != null)
+        {
+            transactions = await WalletService.GetWalletTransactionsAsync(wallet.Id);
+        }
+    }
+
+    private class WalletActionModel
+    {
+        [Required(ErrorMessage = "Amount is required.")]
         public string AmountString { get; set; } = "";
 
         public decimal Amount =>
