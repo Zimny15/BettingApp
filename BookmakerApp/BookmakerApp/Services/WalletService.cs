@@ -80,6 +80,14 @@ namespace BookmakerApp.Services
             return true;
         }
 
+        public async Task SaveBetAsync(BetHistory bet, Wallet wallet)
+        {
+            _context.Bets.Add(bet);
+            _context.Wallets.Update(wallet);
+            await _context.SaveChangesAsync();
+        }
+
+
 
         private async Task<ApplicationUser?> GetCurrentUserAsync()
         {

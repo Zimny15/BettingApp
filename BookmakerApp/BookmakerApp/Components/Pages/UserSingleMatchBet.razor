@@ -1,0 +1,185 @@
+﻿@page "/bets/{matchId:int}"
+@rendermode InteractiveServer
+@attribute [Authorize]
+
+@using BookmakerApp.Models
+@using BookmakerApp.Services
+@using BookmakerApp.Shared.Models
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Authorization
+@inject ExternalFootballApiService MatchService
+@inject WalletService WalletService
+@inject NavigationManager NavigationManager
+@inject AuthenticationStateProvider AuthProvider
+
+<PageTitle>Place Your Bet</PageTitle>
+
+@if (match == null || wallet == null)
+{
+    <p>Loading...</p>
+}
+else
+{
+    <div class="text-center mt-4">
+        <h4>@match.HomeTeam vs @match.AwayTeam</h4>
+        <div class="d-flex justify-content-center align-items-center gap-5 my-4">
+            <img src="@match.HomeTeamLogo" alt="home" style="width: 120px;" />
+            <span style="font-size: 1.2rem;">VS</span>
+            <img src="@match.AwayTeamLogo" alt="away" style="width: 120px;" />
+        </div>
+
+        <h5 class="mb-3">Choose your outcome:</h5>
+
+        <div class="d-flex justify-content-center gap-3 mb-4">
+            <button class="btn btn-outline-primary" @onclick='() => selectedOutcome = "Win"'>
+                @match.HomeTeam Wins (2.2)
+            </button>
+            <button class="btn btn-outline-secondary" @onclick='() => selectedOutcome = "Draw"'>
+                Draw (3.3)
+            </button>
+            <button class="btn btn-outline-danger" @onclick='() => selectedOutcome = "Lose"'>
+                @match.AwayTeam Wins (2.8)
+            </button>
+        </div>
+
+        @if (!string.IsNullOrEmpty(selectedOutcome))
+        {
+            <EditForm Model="@inputModel" OnValidSubmit="ConfirmBet">
+                <div class="form-group mb-3">
+                    <label>Enter amount (max @wallet.Balance zł):</label>
+                    <InputNumber @bind-Value="inputModel.Amount" class="form-control text-center" min="1" max="@wallet.Balance" />
+                </div>
+
+                <button class="btn btn-success" type="submit">Confirm Bet</button>
+            </EditForm>
+
+            @if (showSuccessMessage)
+            {
+                <div class="alert alert-success mt-3" role="alert">
+                    ✅ Bet placed! You can check it in the <strong>Your Bets</strong> tab.
+                </div>
+            }
+
+            @if (!string.IsNullOrEmpty(message))
+            {
+                <p class="mt-3 text-info">@message</p>
+            }
+        }
+    </div>
+}
+
+@code {
+    [Parameter] public int matchId { get; set; }
+
+    private MatchDto? match;
+    private Wallet? wallet;
+    private string? userId;
+    private string? selectedOutcome;
+    private string? message;
+    private bool showSuccessMessage = false;
+    private bool isDisposed = false;
+
+    private BetInputModel inputModel = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var auth = await AuthProvider.GetAuthenticationStateAsync();
+            var user = auth.User;
+            userId = user.FindFirst(c => c.Type.Contains("nameidentifier"))?.Value;
+
+            var matches = await MatchService.GetTodayMatchesGroupedByLeagueAsync();
+            match = matches.FirstOrDefault(m => GenerateMatchId(m) == matchId);
+
+            wallet = await WalletService.GetCurrentUserWalletAsync();
+        }
+        catch (Exception ex)
+        {
+            message = "An error occurred while loading match data.";
+            Console.WriteLine(ex.Message);
+        }
+    }
+
+    private async Task ConfirmBet()
+    {
+        if (isDisposed) return;
+
+        var amount = inputModel.Amount;
+
+        if (wallet == null || match == null || string.IsNullOrEmpty(selectedOutcome) || amount <= 0 || amount > wallet.Balance)
+        {
+            message = "Invalid bet. Check your input.";
+            return;
+        }
+
+        var odds = selectedOutcome switch
+        {
+            "Win" => 2.2m,
+            "Draw" => 3.3m,
+            "Lose" => 2.8m,
+            _ => 1.0m
+        };
+
+        wallet.Balance -= amount;
+        var payout = amount * odds;
+
+        var bet = new BetHistory
+        {
+            MatchId = matchId,
+            UserId = userId!,
+            Amount = amount,
+            Odds = odds,
+            Payout = payout,
+            Result = "Pending",
+            BetPlacedAt = DateTime.UtcNow
+        };
+
+        await WalletService.SaveBetAsync(bet, wallet);
+
+        // 1️⃣ Ustaw komunikat i pokaż go
+        showSuccessMessage = true;
+        message = $"✅ Bet placed: {amount} zł on {selectedOutcome}. Check 'Your Bets' tab.";
+        StateHasChanged(); // <– wymusza natychmiastowy render komunikatu
+
+        // 2️⃣ Czekaj 10 sekund zanim wyczyścisz
+        await Task.Delay(10000);
+
+        if (!isDisposed)
+        {
+            showSuccessMessage = false;
+            message = null;
+            inputModel = new BetInputModel();
+            selectedOutcome = null;
+            StateHasChanged(); // odśwież po ukryciu
+        }
+    }
+
+
+    private async Task HideMessageAfterDelay()
+    {
+        await Task.Delay(10000);
+        if (!isDisposed)
+        {
+            showSuccessMessage = false;
+            StateHasChanged();
+        }
+    }
+
+    public void Dispose()
+    {
+        isDisposed = true;
+    }
+
+    private int GenerateMatchId(MatchDto match)
+    {
+        return (match.HomeTeam + match.AwayTeam + match.Date.ToString("yyyyMMddHH")).GetHashCode();
+    }
+
+    private class BetInputModel
+    {
+        [Required(ErrorMessage = "Amount is required.")]
+        [Range(1, 100000, ErrorMessage = "Amount must be greater than 0.")]
+        public decimal Amount { get; set; }
+    }
+}

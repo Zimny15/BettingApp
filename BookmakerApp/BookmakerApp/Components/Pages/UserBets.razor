@@ -1,0 +1,223 @@
+﻿@page "/bets"
+@rendermode InteractiveServer
+@attribute [Authorize]
+
+@using BookmakerApp.Models
+@using BookmakerApp.Shared.Models
+@using BookmakerApp.Services
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@inject ExternalFootballApiService MatchService
+@inject WalletService WalletService
+@inject AuthenticationStateProvider AuthProvider
+@inject NavigationManager NavigationManager
+
+<PageTitle>Combined Bets</PageTitle>
+
+<h2 class="mt-4">🎯 Combine your Bets</h2>
+
+<style>
+    .league-header {
+        margin-top: 2rem;
+        font-size: 1.3rem;
+        color: #1e1e2f;
+        display: flex;
+        align-items: center;
+    }
+
+    .match-table {
+        width: 100%;
+        max-width: 900px;
+        margin: 0 auto 2rem auto;
+        border-collapse: collapse;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        font-family: 'Segoe UI', sans-serif;
+    }
+
+        .match-table thead {
+            background-color: #1e1e2f;
+            color: #fff;
+            font-weight: 600;
+        }
+
+        .match-table th,
+        .match-table td {
+            padding: 12px 16px;
+            text-align: center;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .match-table tbody tr:hover {
+            background-color: #f5f5f5;
+        }
+</style>
+
+@if (combinedBets.Any())
+{
+    <div class="alert alert-primary">
+        <strong>Combined Bet:</strong>
+        @foreach (var b in combinedBets)
+        {
+            <div>@b.Match.HomeTeam vs @b.Match.AwayTeam – @b.SelectedOutcome (odds: @GetOdds(b.SelectedOutcome))</div>
+        }
+
+        <div class="mt-2">
+            <label>Amount (zł):</label>
+            <input type="number" @bind="combinedAmount" class="form-control form-control-sm" min="1" />
+        </div>
+
+        <div class="mt-2">
+            <strong>Total Odds:</strong> @totalOdds:F2 <br />
+            <strong>Potential Win:</strong> @(combinedAmount* totalOdds):F2 zł
+        </div>
+
+        <button class="btn btn-success mt-2" @onclick="PlaceCombinedBet">Confirm Combined Bet</button>
+    </div>
+}
+
+@if (!string.IsNullOrEmpty(message))
+{
+    <div class="alert alert-info">@message</div>
+}
+
+@if (betItems == null)
+{
+    <p>Loading matches...</p>
+}
+else
+{
+    @foreach (var group in betItems.GroupBy(m => (m.Match.LeagueName, m.Match.LeagueLogo)))
+    {
+        <div class="league-header mt-4">
+            <img src="@group.Key.LeagueLogo" width="28" style="margin-right: 8px;" />
+            <strong>@group.Key.LeagueName</strong>
+        </div>
+
+        <table class="match-table">
+            <thead>
+                <tr>
+                    <th>Home</th>
+                    <th>Away</th>
+                    <th>Time</th>
+                    <th>Outcome</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in group)
+                {
+                    <tr>
+                        <td><img src="@item.Match.HomeTeamLogo" width="24" style="margin-right: 6px;" />@item.Match.HomeTeam</td>
+                        <td><img src="@item.Match.AwayTeamLogo" width="24" style="margin-right: 6px;" />@item.Match.AwayTeam</td>
+                        <td>@item.Match.Date.ToLocalTime().ToString("HH:mm")</td>
+                        <td>
+                            <select @bind="item.SelectedOutcome" class="form-select form-select-sm">
+                                <option value="">-- select --</option>
+                                <option value="Win">@item.Match.HomeTeam Wins (2.2)</option>
+                                <option value="Draw">Draw (3.3)</option>
+                                <option value="Lose">@item.Match.AwayTeam Wins (2.8)</option>
+                            </select>
+                        </td>
+                        <td>
+                            <button class="btn btn-outline-primary btn-sm" @onclick="@(() => AddToCombined(item))">Add</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+}
+
+@code {
+    private List<BetItem> betItems = new();
+    private List<BetItem> combinedBets = new();
+    private decimal combinedAmount;
+    private string? userId;
+    private string? message;
+
+    private decimal totalOdds => combinedBets.Select(b => GetOdds(b.SelectedOutcome)).Aggregate(1.0m, (a, b) => a * b);
+
+    protected override async Task OnInitializedAsync()
+    {
+        var auth = await AuthProvider.GetAuthenticationStateAsync();
+        var user = auth.User;
+        userId = user.FindFirst(c => c.Type.Contains("nameidentifier"))?.Value;
+
+        var allMatches = await MatchService.GetTodayMatchesGroupedByLeagueAsync();
+
+        betItems = allMatches
+            .Where(m =>
+                m.Date > DateTime.UtcNow.AddMinutes(5) &&
+                m.Status == "NS") // "NS" = Not Started
+            .Select(m => new BetItem { Match = m })
+            .ToList();
+    }
+
+    private void AddToCombined(BetItem item)
+    {
+        if (!string.IsNullOrEmpty(item.SelectedOutcome) && !combinedBets.Contains(item))
+        {
+            combinedBets.Add(item);
+        }
+    }
+
+    private decimal GetOdds(string outcome) => outcome switch
+    {
+        "Win" => 2.2m,
+        "Draw" => 3.3m,
+        "Lose" => 2.8m,
+        _ => 1.0m
+    };
+
+    private async Task PlaceCombinedBet()
+    {
+        if (combinedBets.Count == 0 || combinedAmount <= 0)
+        {
+            message = "Please select bets and enter an amount.";
+            return;
+        }
+
+        var wallet = await WalletService.GetCurrentUserWalletAsync();
+        if (wallet == null || wallet.Balance < combinedAmount)
+        {
+            message = "Insufficient balance.";
+            return;
+        }
+
+        wallet.Balance -= combinedAmount;
+        var payout = combinedAmount * totalOdds;
+
+        // TODO: Zmienimy format zapisu zakładów później przy strukturze bazy danych
+        foreach (var b in combinedBets)
+        {
+            var bet = new BetHistory
+            {
+                MatchId = GenerateMatchId(b.Match),
+                UserId = userId!,
+                Amount = combinedAmount / combinedBets.Count, // tymczasowo
+                Odds = GetOdds(b.SelectedOutcome),
+                Payout = 0, // do obliczenia później jako kupon
+                Result = "Pending",
+                BetPlacedAt = DateTime.UtcNow
+            };
+            await WalletService.SaveBetAsync(bet, wallet);
+        }
+
+        message = $"✅ Combined bet placed: {combinedAmount} zł → win up to {payout:F2} zł!";
+        combinedBets.Clear();
+        combinedAmount = 0;
+    }
+
+    private int GenerateMatchId(MatchDto match)
+    {
+        return (match.HomeTeam + match.AwayTeam + match.Date.ToString("yyyyMMddHH")).GetHashCode();
+    }
+
+    private class BetItem
+    {
+        public MatchDto Match { get; set; } = new();
+        public string SelectedOutcome { get; set; } = "";
+    }
+}

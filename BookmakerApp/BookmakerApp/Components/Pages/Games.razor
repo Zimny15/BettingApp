@@ -1,10 +1,12 @@
 ﻿@page "/games"
 @using BookmakerApp.Shared.Models
 @inject HttpClient Http
+@inject NavigationManager NavigationManager
+@rendermode InteractiveServer
 
-<PageTitle>Premier League Games</PageTitle>
+<PageTitle>Today Games</PageTitle>
 
-<h1>Premier League Games</h1>
+<h1>Today Games</h1>
 
 <style>
     .league-header {
@@ -26,40 +28,41 @@
         font-family: 'Segoe UI', sans-serif;
     }
 
-    .match-table thead {
-        background-color: #1e1e2f;
-        color: #fff;
-        font-weight: 600;
+        .match-table thead {
+            background-color: #1e1e2f;
+            color: #fff;
+            font-weight: 600;
+        }
+
+        .match-table th,
+        .match-table td {
+            padding: 12px 16px;
+            text-align: center;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .match-table tbody tr:hover {
+            background-color: #f5f5f5;
+        }
+
+    .disabled-row {
+        opacity: 0.5;
+        cursor: not-allowed;
     }
 
-    .match-table th,
-    .match-table td {
-        padding: 12px 16px;
-        text-align: center;
-        border-bottom: 1px solid #ddd;
+    .clickable-row {
+        cursor: pointer;
     }
 
-    .match-table tbody tr:hover {
-        background-color: #f5f5f5;
-    }
-
-    .match-day-title {
-        text-align: center;
-        margin-top: 2rem;
-        font-size: 1.3rem;
+    .finished-match {
+        color: red;
         font-weight: bold;
-        color: #333;
-    }
-
-    .match-time {
-        font-weight: bold;
-        color: #2c3e50;
     }
 </style>
 
 @if (groupedMatches == null)
 {
-    <p>Ładowanie...</p>
+    <p>Loading matches...</p>
 }
 else
 {
@@ -75,30 +78,61 @@ else
 
         <table class="match-table">
             <thead>
-                <tr><th>Gospodarze</th><th>Goście</th><th>Godzina</th></tr>
+                <tr><th>Home</th><th>Away</th><th>Score / Time</th></tr>
             </thead>
             <tbody>
                 @foreach (var match in leagueGroup)
                 {
-                    <tr>
-                        <td>
-                            <img src="@match.HomeTeamLogo" width="24" style="vertical-align: middle; margin-right: 6px;" />
-                            @match.HomeTeam
-                        </td>
-                        <td>
-                            <img src="@match.AwayTeamLogo" width="24" style="vertical-align: middle; margin-right: 6px;" />
-                            @match.AwayTeam
-                        </td>
-                        <td class="match-time">@match.Date.ToLocalTime().ToString("HH:mm")</td>
-                    </tr>
-                }
-            </tbody>
-        </table>
-    }
+                    var matchId = GenerateMatchId(match);
+                    bool hasResult = match.HomeGoals.HasValue && match.AwayGoals.HasValue;
+                    bool startsSoon = DateTime.UtcNow >= match.Date.AddMinutes(-5);
+                    bool canBeBet = !hasResult && !startsSoon;
+
+                    string rowClass = canBeBet ? "clickable-row" : "disabled-row";
+                    string tooltip = hasResult
+                    ? "You cannot bet on a match that has already finished."
+                    : startsSoon ? "Betting closed 5 minutes before kickoff." : "";
+
+                    <tr class="@rowClass"
+                        @onclick="@(() => {
+                        if (canBeBet)
+                        {
+                            NavigationManager.NavigateTo($"/bets/{matchId}");
+                        }
+                    })"
+                      title="@tooltip">
+                      <td>
+                          <img src="@match.HomeTeamLogo" width="24" style="vertical-align: middle; margin-right: 6px;" />
+                          @match.HomeTeam
+                      </td>
+                      <td>
+                          <img src="@match.AwayTeamLogo" width="24" style="vertical-align: middle; margin-right: 6px;" />
+                          @match.AwayTeam
+                      </td>
+                      <td class="@(hasResult ? "finished-match" : "")">
+                        @if (hasResult)
+                        {
+                            @($"{match.HomeGoals}:{match.AwayGoals}")
+                        }
+                        else
+                        {
+                            @match.Date.ToLocalTime().ToString("HH:mm")
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
 }
 
 @code {
     private List<IGrouping<(string LeagueName, string LeagueLogo), MatchDto>> groupedMatches;
+
+    private int GenerateMatchId(MatchDto match)
+    {
+        return (match.HomeTeam + match.AwayTeam + match.Date.ToString("yyyyMMddHH")).GetHashCode();
+    }
 
     protected override async Task OnInitializedAsync()
     {

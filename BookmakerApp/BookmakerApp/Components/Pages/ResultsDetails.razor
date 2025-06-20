@@ -1,0 +1,85 @@
+﻿@page "/results/{matchId:int}"
+@rendermode InteractiveServer
+
+@using BookmakerApp.Services
+@using BookmakerApp.Shared.Models
+@inject ExternalFootballApiService MatchService
+
+<PageTitle>Match Result</PageTitle>
+
+@if (match == null)
+{
+    <p class="text-center mt-5">Loading match details...</p>
+}
+else
+{
+    <div class="text-center mt-4">
+        <h4>@match.HomeTeam vs @match.AwayTeam</h4>
+
+        <div class="d-flex justify-content-center align-items-center gap-5 my-4">
+            <div class="text-center">
+                <img src="@match.HomeTeamLogo" alt="home" style="width: 120px;" />
+                <p class="mt-2 fw-bold">@match.HomeTeam</p>
+            </div>
+            <div style="font-size: 1.5rem;" class="align-self-center">
+                <strong>@match.HomeGoals : @match.AwayGoals</strong>
+            </div>
+            <div class="text-center">
+                <img src="@match.AwayTeamLogo" alt="away" style="width: 120px;" />
+                <p class="mt-2 fw-bold">@match.AwayTeam</p>
+            </div>
+        </div>
+
+        <h5 class="mt-5 mb-3">Match Statistics</h5>
+
+        @if (match.Statistics != null && match.Statistics.Any())
+        {
+            <table class="table table-striped table-bordered mx-auto" style="max-width: 700px;">
+                <thead class="table-dark">
+                    <tr>
+                        <th style="width: 30%">@match.HomeTeam</th>
+                        <th style="width: 40%">Statistic</th>
+                        <th style="width: 30%">@match.AwayTeam</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var stat in match.Statistics)
+                    {
+                        <tr>
+                            <td>@stat.HomeValue</td>
+                            <td><strong>@stat.Type</strong></td>
+                            <td>@stat.AwayValue</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+        else
+        {
+            <p>No statistics available for this match.</p>
+        }
+    </div>
+}
+
+@code {
+    [Parameter] public int matchId { get; set; }
+
+    private MatchDetailsDto? match;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Console.WriteLine($"🔎 Loading match with ID: {matchId}");
+
+        try
+        {
+            match = await MatchService.GetMatchDetailsAsync(matchId);
+
+            if (match == null)
+                Console.WriteLine($"⚠️ MatchService returned null for matchId={matchId}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ Error loading match details: {ex.Message}");
+        }
+    }
+}
