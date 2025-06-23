@@ -1,4 +1,3 @@
-using BookmakerApp.Client.Services;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using System.Net.Http;
 
@@ -8,18 +7,9 @@ builder.Services.AddAuthorizationCore();
 builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddAuthenticationStateDeserialization();
 
-builder.Services.AddScoped(sp =>
+builder.Services.AddScoped(sp => new HttpClient
 {
-    var handler = new HttpClientHandler
-    {
-        UseCookies = true,
-        UseDefaultCredentials = true
-    };
-
-    return new HttpClient(handler)
-    {
-        BaseAddress = new Uri("https://localhost:7194")
-    };
+    BaseAddress = new Uri(builder.HostEnvironment.BaseAddress)
 });
 
 

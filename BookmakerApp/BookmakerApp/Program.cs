@@ -1,5 +1,4 @@
 using BookmakerApp.Client.Pages;
-using BookmakerApp.Client.Services;
 using BookmakerApp.Components;
 using BookmakerApp.Components.Account;
 using BookmakerApp.Data;
@@ -40,15 +39,34 @@ builder.Services.AddIdentityCore<ApplicationUser>(options => options.SignIn.Requ
     .AddDefaultTokenProviders();
 
 builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSender>();
+builder.Services.AddHttpClient<ExternalFootballApiService>(client =>
+{
+    client.BaseAddress = new Uri("https://localhost:7194/");
+});
 
 builder.Services.AddScoped<OddsCalculationService>();
 
 builder.Services.AddControllers();
-builder.Services.AddHttpClient<ExternalFootballApiService>();
+builder.Services.AddScoped<MatchOddsService>();
+
+
+
 builder.Services.AddHttpClient<StandingsService>();
 builder.Services.AddScoped<WalletService>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddHttpClient();
+builder.Services.AddHttpClient("ServerClient", client =>
+{
+    client.BaseAddress = new Uri("https://localhost:7194/");
+});
+
+// Ustaw jako domyœlny HttpClient (dla np. Inject<HttpClient> w komponentach serwerowych)
+builder.Services.AddScoped(sp =>
+{
+    var factory = sp.GetRequiredService<IHttpClientFactory>();
+    return factory.CreateClient("ServerClient");
+});
+
 
 
 var app = builder.Build();

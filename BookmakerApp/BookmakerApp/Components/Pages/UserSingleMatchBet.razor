@@ -7,10 +7,12 @@
 @using BookmakerApp.Shared.Models
 @using System.ComponentModel.DataAnnotations
 @using Microsoft.AspNetCore.Authorization
+@using Microsoft.EntityFrameworkCore
 @inject ExternalFootballApiService MatchService
 @inject WalletService WalletService
 @inject NavigationManager NavigationManager
 @inject AuthenticationStateProvider AuthProvider
+@inject BookmakerApp.Data.ApplicationDbContext Db
 
 <PageTitle>Place Your Bet</PageTitle>
 
@@ -32,14 +34,16 @@ else
 
         <div class="d-flex justify-content-center gap-3 mb-4">
             <button class="btn btn-outline-primary" @onclick='() => selectedOutcome = "Win"'>
-                @match.HomeTeam Wins (2.2)
+                @match.HomeTeam Wins (@odds?.OddsHomeWin.ToString("0.00") ?? "-")
             </button>
             <button class="btn btn-outline-secondary" @onclick='() => selectedOutcome = "Draw"'>
-                Draw (3.3)
+                Draw (@odds?.OddsDraw.ToString("0.00") ?? "-")
             </button>
+
             <button class="btn btn-outline-danger" @onclick='() => selectedOutcome = "Lose"'>
-                @match.AwayTeam Wins (2.8)
+                @match.AwayTeam Wins (@odds?.OddsAwayWin.ToString("0.00") ?? "-")
             </button>
+
         </div>
 
         @if (!string.IsNullOrEmpty(selectedOutcome))
@@ -78,6 +82,7 @@ else
     private string? message;
     private bool showSuccessMessage = false;
     private bool isDisposed = false;
+    private MatchOdds? odds;
 
     private BetInputModel inputModel = new();
 
@@ -85,6 +90,7 @@ else
     {
         try
         {
+            odds = await Db.MatchOdds.FirstOrDefaultAsync(o => o.MatchId == matchId);
             var auth = await AuthProvider.GetAuthenticationStateAsync();
             var user = auth.User;
             userId = user.FindFirst(c => c.Type.Contains("nameidentifier"))?.Value;
@@ -113,23 +119,30 @@ else
             return;
         }
 
-        var odds = selectedOutcome switch
+        if (odds == null)
         {
-            "Win" => 2.2m,
-            "Draw" => 3.3m,
-            "Lose" => 2.8m,
+            message = "Odds not found for this match.";
+            return;
+        }
+
+        decimal chosenOdds = selectedOutcome switch
+        {
+            "Win" => odds.OddsHomeWin,
+            "Draw" => odds.OddsDraw,
+            "Lose" => odds.OddsAwayWin,
             _ => 1.0m
         };
 
+
         wallet.Balance -= amount;
-        var payout = amount * odds;
+        var payout = amount * chosenOdds;
 
         var bet = new BetHistory
         {
             MatchId = matchId,
             UserId = userId!,
             Amount = amount,
-            Odds = odds,
+            Odds = chosenOdds,
             Payout = payout,
             Result = "Pending",
             BetPlacedAt = DateTime.UtcNow

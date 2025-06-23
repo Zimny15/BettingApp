@@ -26,7 +26,7 @@ public class ExternalFootballApiService
             RequestUri = new Uri($"https://v3.football.api-sports.io/fixtures/statistics?fixture={matchId}"),
             Headers =
         {
-            { "x-apisports-key", "13c7527ad64a43ddb42da93ce94f7082" }
+            { "x-apisports-key", "b833b2c7a72d286a0d4b77054b31d6de" }
         }
         };
 
@@ -82,7 +82,7 @@ public class ExternalFootballApiService
             RequestUri = new Uri($"https://v3.football.api-sports.io/fixtures?id={matchId}"),
             Headers =
         {
-            { "x-apisports-key", "13c7527ad64a43ddb42da93ce94f7082" }
+            { "x-apisports-key", "b833b2c7a72d286a0d4b77054b31d6de" }
         }
         };
 
@@ -116,7 +116,7 @@ public class ExternalFootballApiService
             RequestUri = new Uri(url),
             Headers =
                 {
-                    { "x-apisports-key", "13c7527ad64a43ddb42da93ce94f7082" }
+                    { "x-apisports-key", "b833b2c7a72d286a0d4b77054b31d6de" }
         },
         };
 

@@ -21,7 +21,7 @@ public class StandingsService
         {
             Method = HttpMethod.Get,
             RequestUri = new Uri($"https://v3.football.api-sports.io/standings?league={leagueId}&season={season}"),
-            Headers = { { "x-apisports-key", "13c7527ad64a43ddb42da93ce94f7082" } }
+            Headers = { { "x-apisports-key", "b833b2c7a72d286a0d4b77054b31d6de" } }
         };
 
         var response = await _http.SendAsync(request);

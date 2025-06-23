@@ -21,7 +21,7 @@ public class OddsCalculationService
     public async Task CalculateOddsForTomorrowAsync()
     {
         var today = DateTime.UtcNow.Date;
-        var matches = await _api.GetTodayMatchesGroupedByLeagueAsync(today.AddDays(1));
+        var matches = await _api.GetTodayMatchesGroupedByLeagueAsync(today.AddDays(0));
 
         foreach (var match in matches)
         {
@@ -68,13 +68,14 @@ public class OddsCalculationService
         string[] seasonsToTry = { "2023", "2022" };
         List<JsonElement> fixtures = [];
 
+
         foreach (var season in seasonsToTry)
         {
             var formRequest = new HttpRequestMessage
             {
                 Method = HttpMethod.Get,
                 RequestUri = new Uri($"https://v3.football.api-sports.io/fixtures?team={teamId}&season={season}&status=FT"),
-                Headers = { { "x-apisports-key", "13c7527ad64a43ddb42da93ce94f7082" } }
+                Headers = { { "x-apisports-key", "b833b2c7a72d286a0d4b77054b31d6de" } }
             };
             var formResponse = await _http.SendAsync(formRequest);
             var formJson = await formResponse.Content.ReadFromJsonAsync<JsonElement>();
@@ -108,7 +109,7 @@ public class OddsCalculationService
         {
             Method = HttpMethod.Get,
             RequestUri = new Uri($"https://v3.football.api-sports.io/fixtures/headtohead?h2h={teamId}-{opponentId}&status=FT"),
-            Headers = { { "x-apisports-key", "13c7527ad64a43ddb42da93ce94f7082" } }
+            Headers = { { "x-apisports-key", "b833b2c7a72d286a0d4b77054b31d6de" } }
         };
         var h2hResponse = await _http.SendAsync(h2hRequest);
         var h2hJson = await h2hResponse.Content.ReadFromJsonAsync<JsonElement>();
@@ -152,34 +153,45 @@ public class OddsCalculationService
 
 
     private (double home, double draw, double away) CalculateOdds(int homeScore, int awayScore)
+{
+    double minProb = 0.05;
+    double maxProb = 0.80;
+
+    // Bezpieczne punkty
+    double pDrawRaw = 0.2; // stała szansa na remis
+    double homeRaw = Math.Max(1.0, homeScore);
+    double awayRaw = Math.Max(1.0, awayScore);
+
+    // Normalizacja punktów
+    double total = homeRaw + awayRaw;
+    double pHome = homeRaw / total;
+    double pAway = awayRaw / total;
+
+    // Delikatna penalizacja dla zbyt małych różnic
+    double diff = Math.Abs(homeRaw - awayRaw);
+    if (diff < 1.5)
     {
-        double diff = Math.Abs(homeScore - awayScore);
-        double maxScore = Math.Max(homeScore, awayScore);
-        double pDraw = 0.3 - 0.2 * (diff / (maxScore + 1));
-        pDraw = Math.Clamp(pDraw * 0.95, 0.08, 0.25);
-
-        double pHome = homeScore;
-        double pAway = awayScore;
-
-        // Zapewnienie minimalnej wartości
-        double minP = 0.01;
-        pHome = Math.Max(pHome, minP);
-        pAway = Math.Max(pAway, minP);
-
-        // Normalizacja
-        double total = pHome + pAway + pDraw;
-        pHome /= total;
-        pAway /= total;
-        pDraw /= total;
-
-        // Kurs = 1 / prawdopodobieństwo * marża
-        double margin = 1.2;
-
-        return (
-            Math.Round(margin / pHome, 2),
-            Math.Round(margin / pDraw, 2),
-            Math.Round(margin / pAway, 2)
-        );
+        pDrawRaw += 0.05;
+        pHome *= 0.975;
+        pAway *= 0.975;
     }
+
+    // Skalowanie
+    double norm = pHome + pAway + pDrawRaw;
+    pHome = Math.Clamp(pHome / norm, minProb, maxProb);
+    pAway = Math.Clamp(pAway / norm, minProb, maxProb);
+    double pDraw = Math.Clamp(pDrawRaw / norm, 0.12, 0.30);
+
+    // Kurs = 1 / prawdopodobieństwo * marża
+    double margin = 1.15;
+
+    double oHome = Math.Min(Math.Round(margin / pHome, 2), 6.0);
+    double oAway = Math.Min(Math.Round(margin / pAway, 2), 6.0);
+    double oDraw = Math.Min(Math.Round(margin / pDraw, 2), 5.5);
+
+    return (oHome, oDraw, oAway);
+}
+
+
 }
 

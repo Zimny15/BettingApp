@@ -11,6 +11,7 @@
 @inject WalletService WalletService
 @inject AuthenticationStateProvider AuthProvider
 @inject NavigationManager NavigationManager
+@inject MatchOddsService MatchOddsService
 
 <PageTitle>Combined Bets</PageTitle>
 
@@ -60,7 +61,7 @@
         <strong>Combined Bet:</strong>
         @foreach (var b in combinedBets)
         {
-            <div>@b.Match.HomeTeam vs @b.Match.AwayTeam – @b.SelectedOutcome (odds: @GetOdds(b.SelectedOutcome))</div>
+            <div>@b.Match.HomeTeam vs @b.Match.AwayTeam – @b.SelectedOutcome (odds: @GetOdds(b.SelectedOutcome, b))</div>
         }
 
         <div class="mt-2">
@@ -115,9 +116,9 @@ else
                         <td>
                             <select @bind="item.SelectedOutcome" class="form-select form-select-sm">
                                 <option value="">-- select --</option>
-                                <option value="Win">@item.Match.HomeTeam Wins (2.2)</option>
-                                <option value="Draw">Draw (3.3)</option>
-                                <option value="Lose">@item.Match.AwayTeam Wins (2.8)</option>
+                                <option value="Win">@item.Match.HomeTeam Wins (@item.HomeWinOdds)</option>
+                                <option value="Draw">Draw (@item.DrawOdds)</option>
+                                <option value="Lose">@item.Match.AwayTeam Wins (@item.AwayWinOdds)</option>
                             </select>
                         </td>
                         <td>
@@ -137,7 +138,7 @@ else
     private string? userId;
     private string? message;
 
-    private decimal totalOdds => combinedBets.Select(b => GetOdds(b.SelectedOutcome)).Aggregate(1.0m, (a, b) => a * b);
+    private decimal totalOdds => combinedBets.Select(b => GetOdds(b.SelectedOutcome, b)).Aggregate(1.0m, (a, b) => a * b);
 
     protected override async Task OnInitializedAsync()
     {
@@ -147,12 +148,22 @@ else
 
         var allMatches = await MatchService.GetTodayMatchesGroupedByLeagueAsync(DateTime.UtcNow);
 
-        betItems = allMatches
-            .Where(m =>
-                m.Date > DateTime.UtcNow.AddMinutes(5) &&
-                m.Status == "NS") // "NS" = Not Started
-            .Select(m => new BetItem { Match = m })
-            .ToList();
+        betItems = new();
+
+        foreach (var match in allMatches
+            .Where(m => m.Date > DateTime.UtcNow.AddMinutes(5) && m.Status == "NS"))
+        {
+            var odds = await MatchOddsService.GetOddsForMatchAsync(match.FixtureId);
+
+            betItems.Add(new BetItem
+            {
+                Match = match,
+                HomeWinOdds = odds?.OddsHomeWin ?? 1.0m,
+                DrawOdds = odds?.OddsDraw ?? 1.0m,
+                AwayWinOdds = odds?.OddsAwayWin ?? 1.0m
+            });
+        }
+
     }
 
     private void AddToCombined(BetItem item)
@@ -163,11 +174,11 @@ else
         }
     }
 
-    private decimal GetOdds(string outcome) => outcome switch
+    private decimal GetOdds(string outcome, BetItem item) => outcome switch
     {
-        "Win" => 2.2m,
-        "Draw" => 3.3m,
-        "Lose" => 2.8m,
+        "Win" => item.HomeWinOdds,
+        "Draw" => item.DrawOdds,
+        "Lose" => item.AwayWinOdds,
         _ => 1.0m
     };
 
@@ -197,7 +208,7 @@ else
                 MatchId = GenerateMatchId(b.Match),
                 UserId = userId!,
                 Amount = combinedAmount / combinedBets.Count, // tymczasowo
-                Odds = GetOdds(b.SelectedOutcome),
+                Odds = GetOdds(b.SelectedOutcome, b),
                 Payout = 0, // do obliczenia później jako kupon
                 Result = "Pending",
                 BetPlacedAt = DateTime.UtcNow
@@ -219,5 +230,8 @@ else
     {
         public MatchDto Match { get; set; } = new();
         public string SelectedOutcome { get; set; } = "";
+        public decimal HomeWinOdds { get; set; }
+        public decimal DrawOdds { get; set; }
+        public decimal AwayWinOdds { get; set; }
     }
 }
