@@ -145,7 +145,7 @@ else
         var user = auth.User;
         userId = user.FindFirst(c => c.Type.Contains("nameidentifier"))?.Value;
 
-        var allMatches = await MatchService.GetTodayMatchesGroupedByLeagueAsync();
+        var allMatches = await MatchService.GetTodayMatchesGroupedByLeagueAsync(DateTime.UtcNow);
 
         betItems = allMatches
             .Where(m =>

@@ -18,7 +18,7 @@ public class MatchesController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<List<MatchDto>>> Get()
     {
-        var matches = await _api.GetTodayMatchesGroupedByLeagueAsync();
+        var matches = await _api.GetTodayMatchesGroupedByLeagueAsync(DateTime.UtcNow);
         return Ok(matches);
     }
 

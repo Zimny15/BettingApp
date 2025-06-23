@@ -105,10 +105,10 @@ public class ExternalFootballApiService
     }
 
 
-    public async Task<List<MatchDto>> GetTodayMatchesGroupedByLeagueAsync()
+    public async Task<List<MatchDto>> GetTodayMatchesGroupedByLeagueAsync(DateTime date)
     {
-        var date = DateTime.UtcNow.ToString("yyyy-MM-dd");
-        var url = $"https://v3.football.api-sports.io/fixtures?date={date}";
+        var dateStr = date.ToString("yyyy-MM-dd");
+        var url = $"https://v3.football.api-sports.io/fixtures?date={dateStr}";
 
         var request = new HttpRequestMessage
         {
@@ -125,12 +125,10 @@ public class ExternalFootballApiService
 
         var json = await response.Content.ReadAsStringAsync();
         var parsed = JsonSerializer.Deserialize<ApiResponse>(json);
-        _logger.LogInformation("➡️ Odpowiedź z RapidAPI: {0}", json);
-
 
         if (parsed?.Response == null)
         {
-            _logger.LogWarning("Brak danych w odpowiedzi RapidAPI. Odpowiedź: {json}", json);
+            _logger.LogWarning("Brak danych z RapidAPI dla daty {0}", dateStr);
             return new List<MatchDto>();
         }
 
@@ -140,6 +138,8 @@ public class ExternalFootballApiService
             Date = f.FixtureInfo?.Date ?? DateTime.MinValue,
             LeagueName = f.League?.Name ?? "Unknown League",
             LeagueLogo = f.League?.Logo,
+            HomeTeamId = f.Teams?.Home?.Id ?? 0,
+            AwayTeamId = f.Teams?.Away?.Id ?? 0,
             HomeTeam = f.Teams?.Home?.Name ?? "Team A",
             AwayTeam = f.Teams?.Away?.Name ?? "Team B",
             HomeTeamLogo = f.Teams?.Home?.Logo,
@@ -204,6 +204,8 @@ public class ExternalFootballApiService
 
     private class Team
     {
+        [JsonPropertyName("id")]
+        public int Id { get; set; }
         [JsonPropertyName("name")]
         public string Name { get; set; }
         [JsonPropertyName("logo")]

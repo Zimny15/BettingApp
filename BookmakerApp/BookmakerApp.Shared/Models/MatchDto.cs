@@ -12,6 +12,8 @@ public class MatchDto
     public string LeagueName { get; set; }
     public string LeagueLogo { get; set; }
 
+    public int HomeTeamId { get; set; }
+    public int AwayTeamId { get; set; }
     public string HomeTeam { get; set; }
     public string AwayTeam { get; set; }
 

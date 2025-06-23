@@ -8,6 +8,8 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<Wallet> Wallets => Set<Wallet>();
     public DbSet<WalletTransaction> WalletTransactions => Set<WalletTransaction>();
     public DbSet<BetHistory> Bets => Set<BetHistory>();
+    public DbSet<MatchOdds> MatchOdds => Set<MatchOdds>();
+    public DbSet<TeamStats> TeamStats => Set<TeamStats>();
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -27,5 +29,13 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             b.Property(p => p.Payout).HasColumnType("decimal(18,2)");
         });
 
+        modelBuilder.Entity<MatchOdds>(m =>
+        {
+            m.HasIndex(e => e.MatchId).IsUnique();
+
+            m.Property(p => p.OddsHomeWin).HasColumnType("decimal(5,2)");
+            m.Property(p => p.OddsDraw).HasColumnType("decimal(5,2)");
+            m.Property(p => p.OddsAwayWin).HasColumnType("decimal(5,2)");
+        });
     }
 }

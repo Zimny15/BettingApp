@@ -89,7 +89,7 @@ else
             var user = auth.User;
             userId = user.FindFirst(c => c.Type.Contains("nameidentifier"))?.Value;
 
-            var matches = await MatchService.GetTodayMatchesGroupedByLeagueAsync();
+            var matches = await MatchService.GetTodayMatchesGroupedByLeagueAsync(DateTime.UtcNow);
             match = matches.FirstOrDefault(m => GenerateMatchId(m) == matchId);
 
             wallet = await WalletService.GetCurrentUserWalletAsync();

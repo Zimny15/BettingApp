@@ -41,17 +41,14 @@ builder.Services.AddIdentityCore<ApplicationUser>(options => options.SignIn.Requ
 
 builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSender>();
 
+builder.Services.AddScoped<OddsCalculationService>();
 
 builder.Services.AddControllers();
 builder.Services.AddHttpClient<ExternalFootballApiService>();
 builder.Services.AddHttpClient<StandingsService>();
 builder.Services.AddScoped<WalletService>();
 builder.Services.AddHttpContextAccessor();
-builder.Services.AddScoped<HttpClient>(sp =>
-{
-    var nav = sp.GetRequiredService<NavigationManager>();
-    return new HttpClient { BaseAddress = new Uri(nav.BaseUri) };
-});
+builder.Services.AddHttpClient();
 
 
 var app = builder.Build();
