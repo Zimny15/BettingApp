@@ -14,8 +14,6 @@
 else
 {
     <div class="text-center mt-4">
-        <h4>@match.HomeTeam vs @match.AwayTeam</h4>
-
         <div class="d-flex justify-content-center align-items-center gap-5 my-4">
             <div class="text-center">
                 <img src="@match.HomeTeamLogo" alt="home" style="width: 120px;" />
@@ -34,32 +32,74 @@ else
 
         @if (match.Statistics != null && match.Statistics.Any())
         {
-            <table class="table table-striped table-bordered mx-auto" style="max-width: 700px;">
-                <thead class="table-dark">
-                    <tr>
-                        <th style="width: 30%">@match.HomeTeam</th>
-                        <th style="width: 40%">Statistic</th>
-                        <th style="width: 30%">@match.AwayTeam</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var stat in match.Statistics)
-                    {
-                        <tr>
-                            <td>@stat.HomeValue</td>
-                            <td><strong>@stat.Type</strong></td>
-                            <td>@stat.AwayValue</td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
+            @foreach (var stat in match.Statistics)
+            {
+                var isPercent = stat.HomeValue?.Contains("%") == true;
+                var (home, away) = ParseToNumbers(stat.HomeValue, stat.AwayValue);
+                var total = (home + away) <= 0.0001 ? 1 : home + away;
+                var homeFlex = home;
+                var awayFlex = away;
+
+                <div class="stat-type">@stat.Type</div>
+                <div class="stat-row">
+                    <div class="team-value">@stat.HomeValue</div>
+                    <div class="stat-bar-container">
+                        <div class="stat-bar-home" style="flex:@homeFlex"></div>
+                        <div class="stat-bar-away" style="flex:@awayFlex"></div>
+                    </div>
+                    <div class="team-value">@stat.AwayValue</div>
+                </div>
+            }
         }
         else
         {
-            <p>No statistics available for this match.</p>
+            <p class="text-center">No statistics available for this match.</p>
         }
     </div>
 }
+
+<style>
+    .stat-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin: 10px auto;
+        max-width: 700px;
+    }
+
+    .team-value {
+        width: 20%;
+        text-align: center;
+        font-weight: bold;
+    }
+
+    .stat-bar-container {
+        width: 60%;
+        height: 22px;
+        background-color: #eee;
+        border-radius: 4px;
+        overflow: hidden;
+        position: relative;
+        display: flex;
+    }
+
+    .stat-bar-home {
+        background-color: #007bff;
+        height: 100%;
+    }
+
+    .stat-bar-away {
+        background-color: #dc3545;
+        height: 100%;
+    }
+
+    .stat-type {
+        margin: 25px 0 10px 0;
+        text-align: center;
+        font-weight: 600;
+        font-size: 1.1rem;
+    }
+</style>
 
 @code {
     [Parameter] public int matchId { get; set; }
@@ -81,5 +121,17 @@ else
         {
             Console.WriteLine($"❌ Error loading match details: {ex.Message}");
         }
+    }
+
+    private (double home, double away) ParseToNumbers(string homeVal, string awayVal)
+    {
+        double Parse(string val)
+        {
+            if (string.IsNullOrWhiteSpace(val) || val == "-" || val == "null") return 0;
+            val = val.Replace("%", "").Trim();
+            return double.TryParse(val, out var num) ? num : 0;
+        }
+
+        return (Parse(homeVal), Parse(awayVal));
     }
 }
