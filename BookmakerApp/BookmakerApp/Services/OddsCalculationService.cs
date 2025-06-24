@@ -63,8 +63,6 @@ public class OddsCalculationService
         int recentFormPoints = 0;
         int homeAdvantage = isHome ? 2 : 0;
         int headToHeadPoints = 0;
-
-        // ---- Pobieranie formy zespołu ----
         string[] seasonsToTry = { "2023", "2022" };
         List<JsonElement> fixtures = [];
 
@@ -104,7 +102,6 @@ public class OddsCalculationService
                 recentFormPoints += 1;
         }
 
-        // ---- Pobieranie ostatniego meczu H2H ----
         var h2hRequest = new HttpRequestMessage
         {
             Method = HttpMethod.Get,
@@ -133,6 +130,13 @@ public class OddsCalculationService
                 headToHeadPoints = 1;
         }
 
+        if (recentFormPoints == 0 && headToHeadPoints == 0)
+        {
+            var rand = new Random();
+            recentFormPoints = rand.Next(1, 11);
+            headToHeadPoints = rand.Next(0, 4);
+        }
+
         var stats = new TeamStats
         {
             TeamId = teamId,
@@ -153,45 +157,38 @@ public class OddsCalculationService
 
 
     private (double home, double draw, double away) CalculateOdds(int homeScore, int awayScore)
-{
-    double minProb = 0.05;
-    double maxProb = 0.80;
-
-    // Bezpieczne punkty
-    double pDrawRaw = 0.2; // stała szansa na remis
-    double homeRaw = Math.Max(1.0, homeScore);
-    double awayRaw = Math.Max(1.0, awayScore);
-
-    // Normalizacja punktów
-    double total = homeRaw + awayRaw;
-    double pHome = homeRaw / total;
-    double pAway = awayRaw / total;
-
-    // Delikatna penalizacja dla zbyt małych różnic
-    double diff = Math.Abs(homeRaw - awayRaw);
-    if (diff < 1.5)
     {
-        pDrawRaw += 0.05;
-        pHome *= 0.975;
-        pAway *= 0.975;
+        double minProb = 0.1;
+        double maxProb = 0.8;
+
+        double homeRaw = Math.Max(1.0, homeScore);
+        double awayRaw = Math.Max(1.0, awayScore);
+        double total = homeRaw + awayRaw;
+
+        double pHome = homeRaw / total;
+        double pAway = awayRaw / total;
+
+        double diff = Math.Abs(homeRaw - awayRaw);
+        double pDraw = diff switch
+        {
+            < 1.0 => 0.30,
+            < 2.0 => 0.25,
+            < 3.0 => 0.18,
+            _ => 0.12
+        };
+
+        double norm = pHome + pAway + pDraw;
+        pHome = Math.Clamp(pHome / norm, minProb, maxProb);
+        pAway = Math.Clamp(pAway / norm, minProb, maxProb);
+        pDraw = Math.Clamp(pDraw / norm, 0.10, 0.30);
+
+        double margin = 1.12 + (1.0 - diff / 10.0);
+
+        double oHome = Math.Min(Math.Round(margin / pHome, 2), 6.5);
+        double oAway = Math.Min(Math.Round(margin / pAway, 2), 6.5);
+        double oDraw = Math.Min(Math.Round(margin / pDraw, 2), 6.0);
+
+        return (oHome, oDraw, oAway);
     }
-
-    // Skalowanie
-    double norm = pHome + pAway + pDrawRaw;
-    pHome = Math.Clamp(pHome / norm, minProb, maxProb);
-    pAway = Math.Clamp(pAway / norm, minProb, maxProb);
-    double pDraw = Math.Clamp(pDrawRaw / norm, 0.12, 0.30);
-
-    // Kurs = 1 / prawdopodobieństwo * marża
-    double margin = 1.15;
-
-    double oHome = Math.Min(Math.Round(margin / pHome, 2), 6.0);
-    double oAway = Math.Min(Math.Round(margin / pAway, 2), 6.0);
-    double oDraw = Math.Min(Math.Round(margin / pDraw, 2), 5.5);
-
-    return (oHome, oDraw, oAway);
-}
-
-
 }
 
