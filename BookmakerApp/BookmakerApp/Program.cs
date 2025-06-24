@@ -21,6 +21,7 @@ builder.Services.AddScoped<IdentityUserAccessor>();
 builder.Services.AddScoped<IdentityRedirectManager>();
 builder.Services.AddScoped<AuthenticationStateProvider, IdentityRevalidatingAuthenticationStateProvider>();
 
+
 builder.Services.AddAuthentication(options =>
     {
         options.DefaultScheme = IdentityConstants.ApplicationScheme;
@@ -49,8 +50,6 @@ builder.Services.AddScoped<OddsCalculationService>();
 builder.Services.AddControllers();
 builder.Services.AddScoped<MatchOddsService>();
 
-
-
 builder.Services.AddHttpClient<StandingsService>();
 builder.Services.AddScoped<WalletService>();
 builder.Services.AddHttpContextAccessor();
@@ -67,7 +66,7 @@ builder.Services.AddScoped(sp =>
     return factory.CreateClient("ServerClient");
 });
 
-
+builder.Services.AddTransient<IEmailSender<ApplicationUser>, EmailSender>();
 
 var app = builder.Build();
 

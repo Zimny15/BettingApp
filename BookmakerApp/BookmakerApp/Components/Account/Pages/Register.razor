@@ -19,12 +19,11 @@
 
 <PageTitle>Register</PageTitle>
 
-<h1>Register</h1>
+<h1>Register - create new account</h1>
     <div class="col-lg-12">
         <StatusMessage Message="@Message" />
         <EditForm Model="Input" asp-route-returnUrl="@ReturnUrl" method="post" OnValidSubmit="RegisterUser" FormName="register">
             <DataAnnotationsValidator />
-            <h2>Create a new account.</h2>
             <hr />
             <ValidationSummary class="text-danger" role="alert" />
         <div class="row">
@@ -131,6 +130,7 @@
             RedirectManager.RedirectTo(
                 "Account/RegisterConfirmation",
                 new() { ["email"] = Input.Email, ["returnUrl"] = ReturnUrl });
+            return;
         }
 
         await SignInManager.SignInAsync(user, isPersistent: false);
@@ -161,6 +161,11 @@
 
     private sealed class InputModel
     {
+        public InputModel()
+        {
+            DateOfBirth = new DateTime(2000, 1, 1);
+        }
+
         [Required]
         [EmailAddress]
         [Display(Name = "Email")]
